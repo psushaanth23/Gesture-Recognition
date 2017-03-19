@@ -9,3 +9,6 @@ Steps to detect the hand
 5) Recognise the gesture
 6) Check for the mapping functionality
 7) Perform the function
+
+Run using : python Recognition.py
+(Ensure that cv2 and numpy is installed)
