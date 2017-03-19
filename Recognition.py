@@ -42,8 +42,8 @@ def hand_threshold(frame_in,hand_hist):
     frame_in=cv2.medianBlur(frame_in,3)
     hsv=cv2.cvtColor(frame_in,cv2.COLOR_BGR2HSV)
     cv2.imshow('hsv',hsv)
-    hsv[0:int(cap_region_y_end*hsv.shape[0]),0:int(cap_region_x_begin*hsv.shape[1])]=0 # Right half screen only
-    hsv[int(cap_region_y_end*hsv.shape[0]):hsv.shape[0],0:hsv.shape[1]]=0
+    #hsv[0:int(cap_region_y_end*hsv.shape[0]),0:int(cap_region_x_begin*hsv.shape[1])]=0 # Right half screen only
+    #hsv[int(cap_region_y_end*hsv.shape[0]):hsv.shape[0],0:hsv.shape[1]]=0
     back_projection = cv2.calcBackProject([hsv], [0,1],hand_hist, [00,180,0,256], 1)
     disc = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (morph_elem_size,morph_elem_size))
     cv2.filter2D(back_projection, -1, disc, back_projection)
@@ -188,6 +188,7 @@ capture_done=0
 bg_captured=0
 GestureDictionary=DefineGestures()
 frame_gesture=Gesture("frame_gesture")
+face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 mouse = PyMouse()
 width,height= mouse.screen_size()
 
@@ -196,7 +197,16 @@ while(1):
     frame=cv2.bilateralFilter(frame,5,50,100)
     # Operations on the frame
     frame=cv2.flip(frame,1)
-    cv2.rectangle(frame,(int(cap_region_x_begin*frame.shape[1]),0),(frame.shape[1],int(cap_region_y_end*frame.shape[0])),(255,0,0),1)
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+
+    for (x,y,w,h) in faces:
+        cv2.rectangle(frame,(x,y),(x+w,y+h),(255,0,0),2)
+        roi_gray = gray[y:y+h, x:x+w]
+        roi_color = frame[y:y+h, x:x+w]
+
+
+    #cv2.rectangle(frame,(int(cap_region_x_begin*frame.shape[1]),0),(frame.shape[1],int(cap_region_y_end*frame.shape[0])),(255,0,0),1)
     frame_original=np.copy(frame)
     if(bg_captured):
         fg_frame=remove_bg(frame)
@@ -215,6 +225,7 @@ while(1):
             cv2.rectangle(frame,(box_pos_x[i],box_pos_y[i]),(box_pos_x[i]+capture_box_dim,box_pos_y[i]+capture_box_dim),(255,0,0),1)
     else:
         frame=hand_threshold(fg_frame,hand_histogram)
+        frame[y-20:y+h+20,x-20:x+w+20]=0
         cv2.imshow('thresholded hand histogram',frame)
         contour_frame=np.copy(frame)
         contours,hierarchy=cv2.findContours(contour_frame,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
