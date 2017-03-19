@@ -11,4 +11,5 @@ Steps to detect the hand
 7) Perform the function
 
 Run using : python Recognition.py
+
 (Ensure that cv2 and numpy is installed)
