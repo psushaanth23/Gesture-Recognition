@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 import math
 from Gestures import *
+from unix import PyMouse
 
 hsv_thresh_lower=150
 gaussian_ksize=11
@@ -23,6 +24,7 @@ finger_thresh_u=3.8
 radius_thresh=0.04
 first_iteration=True
 finger_ct_history=[0,0]
+global gesture_found
 
 
 def capture_hand_histogram(frame_in,box_x,box_y):
@@ -107,6 +109,7 @@ def mark_fingers(frame_in,hull,pt,radius):
     else:
         finger_ct_history[0]=0.34*(finger_ct_history[0]+finger_ct_history[1]+len(finger))
 
+    global finger_count
     if((finger_ct_history[0]-int(finger_ct_history[0]))>0.8):
         finger_count=int(finger_ct_history[0])+1
     else:
@@ -145,19 +148,39 @@ def find_gesture(frame_in,finger,palm):
     frame_gesture.set_palm(palm[0],palm[1])
     frame_gesture.set_finger_pos(finger)
     frame_gesture.calc_angles()
-    gesture_found=DecideGesture(frame_gesture,GestureDictionary)
+    gesture_found = DecideGesture(frame_gesture,GestureDictionary)
     gesture_text="Recognition:"+str(gesture_found)
+    
+    if(finger_count == 0 or gesture_found == 'V' or gesture_found == 'L'):
+        moveMouse()
+
     cv2.putText(frame_in,gesture_text,(int(0.56*frame_in.shape[1]),int(0.97*frame_in.shape[0])),cv2.FONT_HERSHEY_DUPLEX,1,(0,255,255),1,8)
     return frame_in,gesture_found
 
 def remove_bg(frame):
     fg_mask=bg_model.apply(frame)
     kernel = np.ones((3,3),np.uint8)
-    fg_mask=cv2.erode(fg_mask,kernel,iterations = 1)
+    fg_mask=cv2.erode(fg_mask,kernel,iterations = 5)
+    fg_mask=cv2.dilate(fg_mask,kernel,iterations = 5)
+    
+
     frame=cv2.bitwise_and(frame,frame,mask=fg_mask)
     #cv2.imshow('back1',fg_mask)
     #cv2.imshow('frame3',frame)
     return frame
+
+def moveMouse():
+    X,Y=mouse.position()
+    scalex = width/640
+    scaley = height/480
+    if(finger_count == 0):
+        mouse.move(hand_center[0],hand_center[1])
+    elif(gesture_found == 'V'):
+        mouse.click(hand_center[0],hand_center[1],1)
+    elif(gesture_found == 'L'):
+        mouse.click(hand_center[0],hand_center[1],2)
+
+    print hand_center
 
 
 camera = cv2.VideoCapture(0)
@@ -165,6 +188,8 @@ capture_done=0
 bg_captured=0
 GestureDictionary=DefineGestures()
 frame_gesture=Gesture("frame_gesture")
+mouse = PyMouse()
+width,height= mouse.screen_size()
 
 while(1):
     ret, frame = camera.read()
@@ -190,7 +215,7 @@ while(1):
             cv2.rectangle(frame,(box_pos_x[i],box_pos_y[i]),(box_pos_x[i]+capture_box_dim,box_pos_y[i]+capture_box_dim),(255,0,0),1)
     else:
         frame=hand_threshold(fg_frame,hand_histogram)
-        cv2.imshow('thresholded hond histogram',frame)
+        cv2.imshow('thresholded hand histogram',frame)
         contour_frame=np.copy(frame)
         contours,hierarchy=cv2.findContours(contour_frame,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
         found,hand_contour=max_contour_find(contours)
